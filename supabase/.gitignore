@@ -1,0 +1,4 @@
+# Supabase CLI local state — machine-specific, and .temp/start-secrets holds
+# generated local credentials. Never commit these.
+.branches
+.temp
