@@ -7,6 +7,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { AuthCallbackPage } from '../pages/AuthCallbackPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { DesignsPage } from '../pages/DesignsPage';
 
 /**
  * Login and the OAuth callback sit outside the guard; everything else is
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
-          { path: 'designs', element: <PlaceholderPage title="My Designs" phase="2" /> },
+          { path: 'designs', element: <DesignsPage /> },
           { path: 'create', element: <PlaceholderPage title="Create Product" phase="3a" /> },
           { path: 'create/:slug', element: <PlaceholderPage title="Customize" phase="3b" /> },
           { path: 'cart', element: <PlaceholderPage title="Cart" phase="4" /> },

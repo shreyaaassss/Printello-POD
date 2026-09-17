@@ -12,8 +12,8 @@ Each phase ends in something demonstrable.
 | Phase | Scope | Est. | State |
 |-------|-------|------|-------|
 | 0 | Scaffold, schema, seed catalogue | 1.5d | **done** |
-| 1 | Google auth, dashboard shell, profile | 1d | **code done — blocked on Google provider** |
-| 2 | Design library — upload, grid, search, DPI check | 1.5d | not started |
+| 1 | Google auth, dashboard shell, profile | 1d | **done** (Google enabled 2026-09-18) |
+| 2 | Design library — upload, grid, search, DPI check | 1.5d | **done** |
 | 3a | Garment picker + configuration (colour, size, method) | 1.5d | not started |
 | 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | not started |
 | 4 | Cart + checkout + place order | 2d | not started |
@@ -85,3 +85,39 @@ only `email` is on. Sign-in cannot work until someone enables it:
 
 Until then the login page renders and reports the provider error rather than
 failing silently.
+
+**Resolved 2026-09-18** — `/auth/v1/settings` now reports `google: true`.
+
+## Phase 2 — what was built
+
+- `lib/imageProbe.ts` — decodes the file (which is also what rejects a
+  non-image named `.png`), measures pixels, and samples the alpha channel.
+- `features/designs/designs.ts` — upload, list, rename, delete, batch signed
+  thumbnail URLs. Storage first then row, with cleanup on insert failure: an
+  orphaned object is invisible, an orphaned row is a broken thumbnail.
+- `DesignsPage` — drag-and-drop or picker, multi-file, search, delete,
+  chequerboard tiles so transparency is visible rather than assumed.
+
+**The transparency check is the point.** The DTF DPI notes call out that a file
+with no alpha channel prints a white box around the artwork, and that a
+resolution warning cannot catch it. JPEGs never carry alpha, and the library
+accepts JPEG, so every upload is sampled and an opaque file is flagged at
+upload time — when it is still cheap to re-export. Resolution is reported as
+"sharp up to N inches" rather than a DPI number, because DPI is meaningless
+until the print area is known; the real DPI check belongs in phase 3b.
+
+## Verified against the cloud project
+
+Probe migrations, always-raise so nothing persists and none were recorded —
+history still ends at 0005:
+
+- seller A sees only their own design (1 of 2) and none of B's orders
+- A cannot file a design under B's user id (42501)
+- A cannot reprice the catalogue (0 rows) or make themselves an admin (42501)
+- A sees only their own storage objects, and cannot write into B's folder
+- buckets are correct: `designs` private, `garments` public
+
+One trap worth recording: inside a probe, `reset role` drops to the session
+role `cli_login_postgres`, which has no rights — `db push` runs as `postgres`.
+Use `set local role postgres` instead. Also, Supabase blocks direct DELETE on
+storage tables, so deletion cannot be asserted this way.
