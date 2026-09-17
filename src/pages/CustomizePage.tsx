@@ -10,11 +10,26 @@ import {
   unitPrice,
   type ProductDetail,
 } from '../features/catalogue/catalogue';
-import { GarmentPreview } from '../features/garment/GarmentPreview';
+import { ArtworkStage } from '../features/customize/ArtworkStage';
+import { DesignPicker } from '../features/customize/DesignPicker';
+import {
+  DPI_OK,
+  MIN_SCALE,
+  clampPlacement,
+  effectiveDpi,
+  fitPlacement,
+  maxScale,
+  printedInches,
+  type Placement,
+} from '../features/customize/placement';
+import { addToCart } from '../features/cart/cart';
+import { useAuth } from '../features/auth/AuthProvider';
+import { type Design, signThumbnails } from '../features/designs/designs';
 import type { PrintMethod, PrintSide, Product, SizeCode } from '../types/catalogue';
 
 export function CustomizePage() {
   const { slug = '' } = useParams();
+  const { user } = useAuth();
 
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [siblings, setSiblings] = useState<Product[]>([]);
@@ -26,6 +41,16 @@ export function CustomizePage() {
   const [side, setSide] = useState<PrintSide>('front');
   const [method, setMethod] = useState<PrintMethod>('DTF');
   const [showSizeChart, setShowSizeChart] = useState(false);
+
+  const [design, setDesign] = useState<Design | null>(null);
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [customName, setCustomName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [added, setAdded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -79,6 +104,63 @@ export function CustomizePage() {
   const price = detail ? unitPrice(detail.product, variant) : 0;
   const printArea = detail?.printAreas[side] ?? null;
 
+  const aspect =
+    design?.widthPx && design?.heightPx ? design.widthPx / design.heightPx : 1;
+
+  // Front and back can have different printable areas — the hoodie's front is
+  // shorter to clear the pocket — so a placement valid on one side may not be
+  // valid on the other. Re-fit whenever the area underneath it changes.
+  useEffect(() => {
+    if (!printArea || !design) return;
+    setPlacement((current) =>
+      current ? clampPlacement(printArea, aspect, current) : fitPlacement(printArea, aspect),
+    );
+  }, [printArea, design, aspect]);
+
+  async function onPickDesign(picked: Design) {
+    setPickerOpen(false);
+    setDesign(picked);
+    setAdded(false);
+    const urls = await signThumbnails([picked]);
+    setArtworkUrl(urls[picked.id] ?? null);
+    if (printArea) {
+      const a = picked.widthPx && picked.heightPx ? picked.widthPx / picked.heightPx : 1;
+      setPlacement(fitPlacement(printArea, a));
+    }
+  }
+
+  const dpi =
+    printArea && design?.widthPx && placement
+      ? effectiveDpi(printArea, design.widthPx, aspect, placement)
+      : null;
+
+  const printed = printArea && placement ? printedInches(printArea, aspect, placement) : null;
+
+  async function onAddToCart() {
+    if (!user || !detail || !colour || !variant || !design || !placement) return;
+    setAdding(true);
+    setAddError(null);
+    try {
+      await addToCart(user.id, {
+        productId: detail.product.id,
+        colourId: colour.id,
+        variantId: variant.id,
+        designId: design.id,
+        size,
+        printMethod: method,
+        side,
+        placement,
+        quantity,
+        customName: customName.trim() || null,
+      });
+      setAdded(true);
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAdding(false);
+    }
+  }
+
   if (loading) return <p className="text-sm text-muted">Loading garment…</p>;
   if (error) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>;
   if (!detail) {
@@ -127,11 +209,15 @@ export function CustomizePage() {
 
         <div className="grid min-w-0 flex-1 gap-8 lg:grid-cols-2">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <GarmentPreview
+            <ArtworkStage
               slug={product.slug}
               hex={colour?.hex ?? '#FFFFFF'}
               side={side}
               printArea={printArea}
+              artworkUrl={artworkUrl}
+              aspect={aspect}
+              placement={placement ?? { x: 0.5, y: 0.5, scale: 1, rotation: 0 }}
+              onPlacementChange={setPlacement}
               className="mx-auto max-w-[360px]"
             />
 
@@ -153,7 +239,38 @@ export function CustomizePage() {
             {printArea && (
               <p className="mt-3 text-center text-xs text-muted">
                 Printable area {printArea.widthIn}″ × {printArea.heightIn}″
+                {design ? ' · drag the design to reposition' : ''}
               </p>
+            )}
+
+            {design && placement && printArea && (
+              <div className="mt-4">
+                <label className="flex items-center gap-3 text-sm text-muted">
+                  <span className="w-12 shrink-0">Size</span>
+                  <input
+                    type="range"
+                    min={MIN_SCALE}
+                    max={maxScale(printArea, aspect)}
+                    step={0.01}
+                    value={placement.scale}
+                    onChange={(e) =>
+                      setPlacement(
+                        clampPlacement(printArea, aspect, {
+                          ...placement,
+                          scale: Number(e.target.value),
+                        }),
+                      )
+                    }
+                    className="flex-1 accent-brand-600"
+                  />
+                </label>
+                {printed && (
+                  <p className="mt-1 text-center text-xs text-muted">
+                    Prints at {printed.width.toFixed(1)}″ × {printed.height.toFixed(1)}″
+                    {dpi ? ` · ${Math.round(dpi)} DPI` : ''}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -287,20 +404,98 @@ export function CustomizePage() {
               )}
             </Section>
 
+            <Section label="Artwork">
+              {design ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-100 p-3">
+                  <span className="truncate text-sm text-ink">{design.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen(true)}
+                    className="shrink-0 text-xs font-medium text-brand-700 underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="w-full rounded-lg border border-dashed border-brand-100 px-4 py-3 text-sm text-muted hover:border-brand-600"
+                >
+                  Choose a design
+                </button>
+              )}
+            </Section>
+
+            {/* Low resolution warns, never blocks — artwork is reviewed by a
+                person before anything is printed. */}
+            {dpi !== null && dpi < DPI_OK && (
+              <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                At this size the print will look soft — blurred or pixelated —
+                and that cannot be corrected during printing. Scaling the design
+                down, or using a higher-resolution file, will sharpen it.
+              </p>
+            )}
+
+            <Section label="Product name (optional)">
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                placeholder="e.g. Summer Drop Tee"
+                className="w-full rounded-lg border border-brand-100 px-4 py-2.5 text-sm outline-none focus:border-brand-600"
+              />
+            </Section>
+
+            <Section label="Quantity">
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                className="w-28 rounded-lg border border-brand-100 px-4 py-2.5 text-sm outline-none focus:border-brand-600"
+              />
+              <p className="mt-2 text-sm text-muted">
+                Total {formatINR(price * quantity)}
+              </p>
+            </Section>
+
             <button
               type="button"
-              disabled
-              title="Artwork placement arrives in phase 3b"
-              className="mt-6 w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-white opacity-40"
+              onClick={() => void onAddToCart()}
+              disabled={!design || !variant?.inStock || adding}
+              className="mt-6 w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-brand-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Add Design
+              {adding ? 'Adding…' : 'Add to Cart'}
             </button>
-            <p className="mt-2 text-center text-xs text-muted">
-              Artwork placement arrives next.
-            </p>
+
+            {!design && (
+              <p className="mt-2 text-center text-xs text-muted">
+                Choose a design to continue.
+              </p>
+            )}
+            {addError && (
+              <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{addError}</p>
+            )}
+            {added && (
+              <p className="mt-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-700">
+                Added to your cart.{' '}
+                <Link to="/cart" className="underline">
+                  View cart
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {pickerOpen && user && (
+        <DesignPicker
+          userId={user.id}
+          onPick={(d) => void onPickDesign(d)}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

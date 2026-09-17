@@ -15,7 +15,7 @@ Each phase ends in something demonstrable.
 | 1 | Google auth, dashboard shell, profile | 1d | **done** (Google enabled 2026-09-18) |
 | 2 | Design library — upload, grid, search, DPI check | 1.5d | **done** |
 | 3a | Garment picker + configuration (colour, size, method) | 1.5d | **done** |
-| 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | not started |
+| 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | **done** |
 | 4 | Cart + checkout + place order | 2d | not started |
 | 5 | My Orders + Admin fulfilment | 2d | not started |
 | 6 | Demo polish, seed history, deploy | 1.5d | not started |
@@ -160,3 +160,46 @@ the manager. The dev route exists so that cannot happen again.
 
 Print-area geometry remains guessed. `0006` is a correction to a guess, not a
 measurement. Real tech packs are still needed — see the parallel workstream.
+
+
+## Phase 3b — what was built
+
+- `features/customize/placement.ts` — the geometry, as pure functions. Every
+  value is a **fraction of the print area**, never pixels or inches, so one
+  stored placement renders identically in a 300px preview and a 4000px print
+  file, and survives the print-area geometry changing (which it will, since it
+  is still placeholder).
+- `ArtworkStage` — pointer drag converted to print-area fractions and clamped
+  on every frame. **Containment is enforced by construction**: `maxScale` caps
+  the design at what fits and `clampPlacement` keeps it inside, so artwork
+  that overhangs the printable region is not a validation error, it is simply
+  unreachable.
+- `DesignPicker` — modal over the seller's library.
+- `features/cart/cart.ts` — `getOrCreateDraftOrder` + `addToCart`. Sends no
+  price: the `price_order_item` trigger computes it. A 23505 on draft creation
+  is treated as two tabs racing and re-read, since the partial unique index is
+  the real guarantee.
+- Live DPI against the *current* scale, with the warning wording the DTF
+  policy settled on — "soft", paired with "blurred or pixelated", and explicit
+  that it cannot be corrected during printing. It warns, never blocks. Unlike
+  the ready-made sheet case, "scale it down" **is** actionable here, so the
+  copy offers it.
+
+### Verification
+
+`scripts/check-placement.mts` — 22 checks against the real module (Node 26 runs
+TypeScript directly, so this imports `src/` rather than reimplementing it).
+Covers which axis limits the fit, containment after an extreme drag, the
+collapse-to-a-point case when a design exactly fills an axis, scale capping,
+idempotence of clamping, and the DPI relationship. One failure it produced was
+in the *test's* arithmetic: `maxScale` caps at 1 because a design must never
+exceed the print area's width, so the hoodie's 400/380 is still width-limited.
+
+A cart probe against the cloud project, run as the seller rather than as owner,
+confirmed: the draft cart is created, a second draft is blocked, `unit_price`
+comes out at 289 (249 + 40 for 2XL) from the trigger and not from the client,
+totals roll up, the placement JSON round-trips exactly, and line items cannot
+be edited once the order leaves draft.
+
+`/__garments` now also renders four placement cases. Verified absent from
+`dist/`.
