@@ -13,6 +13,9 @@ import { CreateProductPage } from '../pages/CreateProductPage';
 import { CustomizePage } from '../pages/CustomizePage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
+import { OrdersPage } from '../pages/OrdersPage';
+import { OrderDetailPage } from '../pages/OrderDetailPage';
+import { AdminOrdersPage } from '../pages/AdminOrdersPage';
 
 /**
  * Login and the OAuth callback sit outside the guard; everything else is
@@ -39,10 +42,11 @@ export const router = createBrowserRouter([
           { path: 'create/:slug', element: <CustomizePage /> },
           { path: 'cart', element: <CartPage /> },
           { path: 'checkout', element: <CheckoutPage /> },
-          { path: 'orders', element: <PlaceholderPage title="My Orders" phase="5" /> },
+          { path: 'orders', element: <OrdersPage /> },
+          { path: 'orders/:id', element: <OrderDetailPage /> },
           {
             element: <RequireAdmin />,
-            children: [{ path: 'admin', element: <PlaceholderPage title="Admin" phase="5" /> }],
+            children: [{ path: 'admin', element: <AdminOrdersPage /> }],
           },
           { path: '*', element: <PlaceholderPage title="Not found" phase="—" /> },
         ],

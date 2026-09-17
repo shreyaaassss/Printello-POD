@@ -41,6 +41,23 @@ supabase projects api-keys --project-ref xafotksnuswmmvwduzyf
 The `sb_secret_...` key must never go in `.env.local` — Vite inlines every
 `VITE_` variable into the built bundle.
 
+## Making someone staff
+
+`/admin` is gated on the `admins` table, which starts empty — so no one can
+reach it until a row exists. There is deliberately no self-serve promotion:
+a "first user becomes admin" bootstrap would hand the fulfilment view to
+whoever signed in first, and Google sign-in is open.
+
+Sign in once so the account exists, then run this in the Supabase SQL editor:
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where email = 'you@example.com'
+on conflict (user_id) do nothing;
+```
+
+Sign out and back in afterwards — `is_admin()` is resolved once per session.
+
 ## Database
 
 Migrations live in `supabase/migrations` and are applied in filename order.

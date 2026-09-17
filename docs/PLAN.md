@@ -17,7 +17,7 @@ Each phase ends in something demonstrable.
 | 3a | Garment picker + configuration (colour, size, method) | 1.5d | **done** |
 | 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | **done** |
 | 4 | Cart + checkout + place order | 2d | **done** |
-| 5 | My Orders + Admin fulfilment | 2d | not started |
+| 5 | My Orders + Admin fulfilment | 2d | **done** |
 | 6 | Demo polish, seed history, deploy | 1.5d | not started |
 
 ## Phase 0 — what was built
@@ -250,3 +250,44 @@ Delivery is a flat ₹79, free over ₹999, computed by `delivery_charge()`. Thi
 project has no Shiprocket credentials, and one obvious constant is better than
 a fake rate card that would look authoritative and be wrong. Swapping it for a
 live quote is a change to that one function.
+
+
+## Phase 5 — what was built
+
+- Migration `0009` — `is_valid_order_transition`, enforced inside
+  `enforce_order_rules`. The admin screen only offers valid buttons, but "the
+  UI only offers valid buttons" is a hope about the client, not an invariant.
+  An order that jumps placed → delivered, or comes back from cancelled, is a
+  fulfilment record that no longer describes what happened.
+- `features/orders/orders.ts` — seller list, admin list, shared detail,
+  status changes, fulfilment fields, signed artwork URLs.
+- `OrdersPage` / `OrderDetailPage` — the seller's view, with delivery address
+  and shipment tracking once staff fill it in.
+- `AdminOrdersPage` — status filters, an order drawer with the print queue,
+  per-line artwork download, and courier/AWB/tracking entry.
+
+`NEXT_STATUSES` in TypeScript mirrors the SQL function. They are allowed to
+disagree: the database wins and the action fails loudly, which is the right
+way round.
+
+### Verification
+
+A transition probe run as **two** users — a seller and a staff account:
+
+- staff see the seller's order; an unrelated seller sees nothing
+- `placed → delivered` is refused (23514)
+- `placed → in_production → shipped → delivered` succeeds
+- `delivered → in_production` is refused — terminal states stay terminal
+- staff can read the seller's `designs` rows, which is what makes the
+  print-floor download work against a private bucket
+
+Both PostgREST selects behind the orders screens were checked against the live
+API, including the `order_items(count)` aggregate and the two-level nested
+detail select.
+
+### Admin access
+
+`admins` is empty by design and there is no self-serve promotion — a
+"first user becomes admin" bootstrap would hand the fulfilment view to whoever
+signed in first, and Google sign-in is open. The SQL to promote an account is
+in the README.
