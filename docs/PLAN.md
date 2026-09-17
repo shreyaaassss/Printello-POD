@@ -16,7 +16,7 @@ Each phase ends in something demonstrable.
 | 2 | Design library — upload, grid, search, DPI check | 1.5d | **done** |
 | 3a | Garment picker + configuration (colour, size, method) | 1.5d | **done** |
 | 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | **done** |
-| 4 | Cart + checkout + place order | 2d | not started |
+| 4 | Cart + checkout + place order | 2d | **done** |
 | 5 | My Orders + Admin fulfilment | 2d | not started |
 | 6 | Demo polish, seed history, deploy | 1.5d | not started |
 
@@ -203,3 +203,50 @@ be edited once the order leaves draft.
 
 `/__garments` now also renders four placement cases. Verified absent from
 `dist/`.
+
+
+## Phase 4 — what was built
+
+- Migration `0007` — `enforce_order_rules`, a BEFORE UPDATE trigger on
+  `orders`. **Delivery, the reference, the timestamp and every total are
+  decided in the database.** RLS lets a seller update their own order row, so
+  a client-supplied delivery charge would be a hole of exactly the same shape
+  as a client-supplied unit price. It also refuses an empty order or an
+  incomplete address, and stops a seller advancing their own order past
+  `placed`.
+- Migration `0008` — an empty cart no longer carries the flat delivery charge.
+- `CartPage` — lines with artwork thumbnails, quantity editing, removal, and a
+  summary. Quantity updates send only `quantity`; the pricing trigger
+  recomputes the line.
+- `CheckoutPage` — delivery form prefilled once from the profile, PIN lookup
+  filling city and state, order placement, and a confirmation showing the
+  reference.
+- `pincodeLookup.ts` ported from `printello-web` — India Post, no key, and it
+  sends `access-control-allow-origin: *` (re-confirmed against the live API).
+
+`placeOrder` sends only the delivery details and the status. Everything else
+is the database's, so the client cannot place something invalid by getting its
+own validation wrong.
+
+### Verification
+
+Probes run **as the seller**, not as owner, against the cloud project:
+
+- an empty cart is refused (23514), and so is an incomplete address
+- a seller setting `shipping_total = 0` is overwritten back to 79
+- a complete order places, gets reference `PD…` and a `placed_at`
+- a seller **cannot** advance their own order to `shipped` (42501)
+- quantity 2 → 5 reprices the line to 1245 and drops delivery to 0 at the
+  threshold; back to 1 restores the 79
+- removing the last line returns the cart to 0 / 0 / 0
+
+The embedded PostgREST select behind `getCart` was checked against the live
+API: it returns 200, while a deliberately wrong embed returns PGRST200/400 —
+so the check distinguishes a working join from a silent empty result.
+
+### Still stubbed
+
+Delivery is a flat ₹79, free over ₹999, computed by `delivery_charge()`. This
+project has no Shiprocket credentials, and one obvious constant is better than
+a fake rate card that would look authoritative and be wrong. Swapping it for a
+live quote is a change to that one function.

@@ -11,6 +11,8 @@ import { GarmentPreviewDevPage } from '../pages/GarmentPreviewDevPage';
 import { DesignsPage } from '../pages/DesignsPage';
 import { CreateProductPage } from '../pages/CreateProductPage';
 import { CustomizePage } from '../pages/CustomizePage';
+import { CartPage } from '../pages/CartPage';
+import { CheckoutPage } from '../pages/CheckoutPage';
 
 /**
  * Login and the OAuth callback sit outside the guard; everything else is
@@ -35,8 +37,8 @@ export const router = createBrowserRouter([
           { path: 'designs', element: <DesignsPage /> },
           { path: 'create', element: <CreateProductPage /> },
           { path: 'create/:slug', element: <CustomizePage /> },
-          { path: 'cart', element: <PlaceholderPage title="Cart" phase="4" /> },
-          { path: 'checkout', element: <PlaceholderPage title="Checkout" phase="4" /> },
+          { path: 'cart', element: <CartPage /> },
+          { path: 'checkout', element: <CheckoutPage /> },
           { path: 'orders', element: <PlaceholderPage title="My Orders" phase="5" /> },
           {
             element: <RequireAdmin />,
