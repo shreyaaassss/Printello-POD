@@ -18,7 +18,7 @@ Each phase ends in something demonstrable.
 | 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | **done** |
 | 4 | Cart + checkout + place order | 2d | **done** |
 | 5 | My Orders + Admin fulfilment | 2d | **done** |
-| 6 | Demo polish, seed history, deploy | 1.5d | not started |
+| 6 | Demo polish, seed history, deploy | 1.5d | **done** |
 
 ## Phase 0 — what was built
 
@@ -291,3 +291,37 @@ detail select.
 "first user becomes admin" bootstrap would hand the fulfilment view to whoever
 signed in first, and Google sign-in is open. The SQL to promote an account is
 in the README.
+
+
+## Phase 6 — what was built
+
+- `public/_redirects` — SPA fallback. Without it every deep link 404s on
+  Cloudflare Pages, `/auth/callback` included, so sign-in breaks on the
+  deployed site while working fine locally.
+- A real `DashboardPage`: designs / in-cart / active / delivered counters,
+  recent orders, and total ordered.
+- Cart count badge in the sidebar, re-read on navigation — items are added on
+  another screen, and a badge that loads once is a badge that is quietly wrong.
+- `NotFoundPage`; `PlaceholderPage` deleted — every route is now real.
+- `scripts/seed-demo-orders.sql` — four orders across the lifecycle. It walks
+  each one forward a legal step at a time rather than writing the end state,
+  so seeding exercises the same rules a real order does. Verified by running
+  the actual file against a throwaway staff account inside an aborted
+  transaction: references PD000003–6, totals 577 / 978 / 2996 / 1317, courier
+  set on the shipped and delivered ones.
+- README: Cloudflare Pages settings, the build-time env var trap, and the
+  Supabase/Google redirect URLs that must be added before sign-in works on a
+  deployed origin.
+
+## Remaining
+
+**Nothing in this app has been operated by a human.** Every layer is verified
+against the real database and the placement geometry has 22 checks, but the
+browser-only paths have never run with a real session: file upload, signed
+thumbnails rendering, the pointer drag, the PIN lookup, and the admin drawer.
+
+Still placeholder: garment outlines and, more importantly, the **print-area
+coordinates**, which are guesses. Artwork positioned against a wrong rectangle
+prints in the wrong place, and no amount of UI polish covers that.
+
+Delivery is a flat ₹79, free over ₹999 — one function, `delivery_charge()`.

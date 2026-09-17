@@ -1,0 +1,4 @@
+# SPA fallback. Without this, Cloudflare Pages serves 404 for any deep link —
+# /orders/<id>, /create/<slug>, and the OAuth callback at /auth/callback all
+# break on refresh, which is exactly when a demo goes wrong.
+/*    /index.html   200

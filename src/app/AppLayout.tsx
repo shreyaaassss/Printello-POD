@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../features/auth/AuthProvider';
 import { avatarUrl, displayName, initials, signOut } from '../features/auth/auth';
+import { countCartItems } from '../features/cart/cart';
 
 const NAV = [
   { to: '/', label: 'Home', end: true },
@@ -16,7 +17,20 @@ const NAV = [
 export function AppLayout() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [signingOut, setSigningOut] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+
+  // Re-read on navigation: adding to the cart happens on another screen, and a
+  // badge that only loads once is a badge that is quietly wrong.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void countCartItems(user.id).then((n) => active && setCartCount(n));
+    return () => {
+      active = false;
+    };
+  }, [user, location.pathname]);
 
   async function onSignOut() {
     setSigningOut(true);
@@ -40,12 +54,25 @@ export function AppLayout() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `rounded-full px-4 py-2.5 text-sm font-medium transition ${
+                `flex items-center justify-between rounded-full px-4 py-2.5 text-sm font-medium transition ${
                   isActive ? 'bg-brand-600 text-white' : 'text-muted hover:bg-brand-50'
                 }`
               }
             >
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <span>{item.label}</span>
+                  {item.to === '/cart' && cartCount > 0 && (
+                    <span
+                      className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        isActive ? 'bg-white text-brand-700' : 'bg-brand-100 text-brand-700'
+                      }`}
+                    >
+                      {cartCount}
+                    </span>
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
 

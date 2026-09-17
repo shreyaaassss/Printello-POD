@@ -6,7 +6,7 @@ import { RequireAdmin } from '../features/admin/RequireAdmin';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthCallbackPage } from '../pages/AuthCallbackPage';
 import { DashboardPage } from '../pages/DashboardPage';
-import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { NotFoundPage } from '../pages/NotFoundPage';
 import { GarmentPreviewDevPage } from '../pages/GarmentPreviewDevPage';
 import { DesignsPage } from '../pages/DesignsPage';
 import { CreateProductPage } from '../pages/CreateProductPage';
@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
             element: <RequireAdmin />,
             children: [{ path: 'admin', element: <AdminOrdersPage /> }],
           },
-          { path: '*', element: <PlaceholderPage title="Not found" phase="—" /> },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

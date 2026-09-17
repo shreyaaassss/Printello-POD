@@ -41,6 +41,33 @@ supabase projects api-keys --project-ref xafotksnuswmmvwduzyf
 The `sb_secret_...` key must never go in `.env.local` — Vite inlines every
 `VITE_` variable into the built bundle.
 
+## Deploying to Cloudflare Pages
+
+Build command `npm run build`, output directory `dist`.
+
+`public/_redirects` gives the SPA fallback. Without it every deep link 404s on
+refresh — including `/auth/callback`, so sign-in itself breaks.
+
+**Vite inlines `VITE_*` variables at build time.** Setting them in the Pages
+project is not enough on its own: an existing build keeps whatever it was
+compiled with, so the deployment must be **retried** after the variables are
+set. The symptom is a site that loads but reports sign-in unavailable. Verify
+by fetching the deployed bundle and grepping for the Supabase project ref.
+
+Add the deployed origin to **Supabase → Authentication → URL Configuration**
+(both the site URL and `https://<origin>/auth/callback` as a redirect URL), and
+to the Google OAuth client's authorised origins. Sign-in will fail on the
+deployed site until both are done, while still working on localhost.
+
+## Demo data
+
+`scripts/seed-demo-orders.sql` creates four orders spread across the lifecycle
+so the dashboard, My Orders and the admin queue are not empty. Edit the email
+at the top and run it in the SQL editor. It requires a staff account, because
+advancing an order past `placed` goes through `is_admin()` — the script walks
+each order forward one legal step at a time rather than writing the end state,
+so it exercises the same rules a real order does.
+
 ## Making someone staff
 
 `/admin` is gated on the `admins` table, which starts empty — so no one can
