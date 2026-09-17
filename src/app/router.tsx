@@ -7,13 +7,21 @@ import { LoginPage } from '../pages/LoginPage';
 import { AuthCallbackPage } from '../pages/AuthCallbackPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { PlaceholderPage } from '../pages/PlaceholderPage';
+import { GarmentPreviewDevPage } from '../pages/GarmentPreviewDevPage';
 import { DesignsPage } from '../pages/DesignsPage';
+import { CreateProductPage } from '../pages/CreateProductPage';
+import { CustomizePage } from '../pages/CustomizePage';
 
 /**
  * Login and the OAuth callback sit outside the guard; everything else is
  * behind it. Each remaining placeholder names the phase that fills it in.
  */
 export const router = createBrowserRouter([
+  // Visual check for the hand-drawn garment shapes. Dev only: it is not
+  // behind the auth guard, so it must never exist in a build.
+  ...(import.meta.env.DEV
+    ? [{ path: '/__garments', element: <GarmentPreviewDevPage /> }]
+    : []),
   { path: '/login', element: <LoginPage /> },
   { path: '/auth/callback', element: <AuthCallbackPage /> },
   {
@@ -25,8 +33,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
           { path: 'designs', element: <DesignsPage /> },
-          { path: 'create', element: <PlaceholderPage title="Create Product" phase="3a" /> },
-          { path: 'create/:slug', element: <PlaceholderPage title="Customize" phase="3b" /> },
+          { path: 'create', element: <CreateProductPage /> },
+          { path: 'create/:slug', element: <CustomizePage /> },
           { path: 'cart', element: <PlaceholderPage title="Cart" phase="4" /> },
           { path: 'checkout', element: <PlaceholderPage title="Checkout" phase="4" /> },
           { path: 'orders', element: <PlaceholderPage title="My Orders" phase="5" /> },

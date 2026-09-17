@@ -14,7 +14,7 @@ Each phase ends in something demonstrable.
 | 0 | Scaffold, schema, seed catalogue | 1.5d | **done** |
 | 1 | Google auth, dashboard shell, profile | 1d | **done** (Google enabled 2026-09-18) |
 | 2 | Design library — upload, grid, search, DPI check | 1.5d | **done** |
-| 3a | Garment picker + configuration (colour, size, method) | 1.5d | not started |
+| 3a | Garment picker + configuration (colour, size, method) | 1.5d | **done** |
 | 3b | Artwork placement on canvas — drag, scale, DPI warning | 3d | not started |
 | 4 | Cart + checkout + place order | 2d | not started |
 | 5 | My Orders + Admin fulfilment | 2d | not started |
@@ -121,3 +121,42 @@ One trap worth recording: inside a probe, `reset role` drops to the session
 role `cli_login_postgres`, which has no rights — `db push` runs as `postgres`.
 Use `set local role postgres` instead. Also, Supabase blocks direct DELETE on
 storage tables, so deletion cannot be asserted this way.
+
+
+## Phase 3a — what was built
+
+- `features/catalogue/catalogue.ts` — product list and a single-round-trip
+  `getProductDetail` (product + colours + variants + print areas).
+- `CreateProductPage` — garment grid with "from" pricing.
+- `CustomizePage` — garment switcher, colour swatches, sizes with per-colour
+  stock, size chart, print method, front/back, live price.
+- `GarmentPreview` — outline plus the printable rectangle, both on the same
+  1000x1200 viewBox so the box lands correctly at any rendered size. It already
+  takes `children`, clipped to the print area, which is where phase 3b puts
+  the artwork.
+- `/__garments` — a **dev-only** route rendering every shape and colour.
+  Excluded from builds via `import.meta.env.DEV`; verified absent from `dist/`.
+
+### Four bugs the visual check found that type-checking could not
+
+1. **The hoodie had no hood.** The arc is drawn above the shoulders, against
+   the page rather than the garment, and its stroke was chosen for contrast
+   with the *fill* — so it was invisible. Silhouette strokes now use one
+   neutral grey, because that edge borders the page, not the garment.
+2. **Sweatshirt and hoodie were indistinguishable** from the tee and each
+   other. Long sleeves now run to a cuff, with hem ribbing, drawstrings and a
+   pocket as the distinguishing cues.
+3. **Grey Melange lost all its detailing.** It sits just over the lightness
+   threshold, so the fixed light-grey detail stroke resolved to exactly the
+   fill colour. Detail strokes are now derived from the garment colour by
+   mixing toward black or white, which cannot collide by construction.
+4. **The hoodie print area ran across the kangaroo pocket** — unprintable.
+   Fixed in migration `0006`; the tee and the hoodie back are untouched.
+
+Numbers 1–3 were invisible to `tsc` and would have shown up first in front of
+the manager. The dev route exists so that cannot happen again.
+
+### Still placeholder
+
+Print-area geometry remains guessed. `0006` is a correction to a guess, not a
+measurement. Real tech packs are still needed — see the parallel workstream.
