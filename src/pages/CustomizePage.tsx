@@ -11,6 +11,7 @@ import {
   type ProductDetail,
 } from '../features/catalogue/catalogue';
 import { ArtworkStage } from '../features/customize/ArtworkStage';
+import { garmentOutlineUrl } from '../features/garment/garmentAssets';
 import { DesignPicker } from '../features/customize/DesignPicker';
 import {
   DPI_OK,
@@ -214,6 +215,7 @@ export function CustomizePage() {
               hex={colour?.hex ?? '#FFFFFF'}
               side={side}
               printArea={printArea}
+              outlineUrl={garmentOutlineUrl(colour, side)}
               artworkUrl={artworkUrl}
               aspect={aspect}
               placement={placement ?? { x: 0.5, y: 0.5, scale: 1, rotation: 0 }}

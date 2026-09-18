@@ -8,7 +8,13 @@ interface Props {
   hex: string;
   side: PrintSide;
   printArea: PrintArea | null;
-  /** Rendered inside the print area, clipped to it. Phase 3b puts artwork here. */
+  /**
+   * Public URL of a real flat outline from the `garments` bucket. When set it
+   * replaces the built-in SVG, which exists only so the app works before those
+   * assets are produced.
+   */
+  outlineUrl?: string | null;
+  /** Rendered inside the print area, clipped to it: the seller's artwork. */
   children?: ReactNode;
   className?: string;
 }
@@ -16,24 +22,41 @@ interface Props {
 /**
  * The garment with its printable rectangle marked.
  *
- * Both layers use the same 1000x1200 viewBox and the default
+ * Every layer uses the same 1000x1200 box and the default
  * `preserveAspectRatio`, so the rectangle lands in the right place at any
- * rendered size without any coordinate maths in the caller. If real outline
- * images replace the built-in shapes, they must be exported at the aspect
- * ratio recorded in `print_areas.image_width/height` or the box will drift.
+ * rendered size without coordinate maths in the caller. A real outline image
+ * must therefore be exported at the aspect ratio recorded in
+ * `print_areas.image_width/height`, or the print box will drift against it.
  */
-export function GarmentPreview({ slug, hex, side, printArea, children, className }: Props) {
+export function GarmentPreview({
+  slug,
+  hex,
+  side,
+  printArea,
+  outlineUrl,
+  children,
+  className,
+}: Props) {
   // Crimson vanishes on a black tee; lift it to a pale red on dark garments.
   const guide = isLight(hex) ? '#C8102E' : '#FF9AA2';
 
   return (
     <div className={`relative aspect-[1000/1200] w-full ${className ?? ''}`}>
-      <GarmentOutline
-        shape={shapeForSlug(slug)}
-        hex={hex}
-        side={side}
-        className="absolute inset-0 h-full w-full"
-      />
+      {outlineUrl ? (
+        <img
+          src={outlineUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-contain"
+          draggable={false}
+        />
+      ) : (
+        <GarmentOutline
+          shape={shapeForSlug(slug)}
+          hex={hex}
+          side={side}
+          className="absolute inset-0 h-full w-full"
+        />
+      )}
 
       {printArea && (
         <svg

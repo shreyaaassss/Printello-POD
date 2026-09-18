@@ -8,6 +8,10 @@
  * Relative imports need the explicit .ts extension.
  */
 import {
+  MIN_SCALE,
+  type Corner,
+  placementBounds,
+  resizeFromCorner,
   clampPlacement,
   designSize,
   effectiveDpi,
@@ -122,6 +126,62 @@ console.log('\nhoodie front (migration 0006) — shorter area changes the fit');
   const tr = placementRect(hoodie, 0.8, tall);
   checkTrue('4:5 design fits the shorter area',
     tr.y >= hoodie.y - 1e-9 && tr.y + tr.height <= hoodie.y + hoodie.height + 1e-9);
+}
+
+console.log('\nresize by corner — the opposite corner stays pinned');
+{
+  // A 3:2 design at 40% width, centred.
+  const start: Placement = { x: 0.5, y: 0.5, scale: 0.4, rotation: 0 };
+  const aspect = 1.5;
+  const before = placementBounds(AREA, aspect, start);
+
+  // Drag the SE handle out by an amount that does not hit the size cap: the
+  // NW corner must not move.
+  const se = resizeFromCorner(AREA, aspect, start, 'se', before.left + 0.5, before.top + 0.25);
+  const afterSe = placementBounds(AREA, aspect, se);
+  check('SE drag pins left edge', afterSe.left, before.left, 1e-9);
+  check('SE drag pins top edge', afterSe.top, before.top, 1e-9);
+  checkTrue('SE drag grew the artwork', se.scale > start.scale, `(${se.scale})`);
+
+  // Drag the NW handle out: the SE corner must not move.
+  const nw = resizeFromCorner(AREA, aspect, start, 'nw', before.left - 0.1, before.top - 0.1);
+  const afterNw = placementBounds(AREA, aspect, nw);
+  check('NW drag pins right edge', afterNw.right, before.right, 1e-9);
+  check('NW drag pins bottom edge', afterNw.bottom, before.bottom, 1e-9);
+  checkTrue('NW drag grew the artwork', nw.scale > start.scale, `(${nw.scale})`);
+
+  // Dragging a corner inward past itself must stop, never invert.
+  const collapsed = resizeFromCorner(AREA, aspect, start, 'se', before.left - 5, before.top - 5);
+  checkTrue('inward drag clamps at MIN_SCALE', collapsed.scale >= MIN_SCALE - 1e-9,
+    `(got ${collapsed.scale})`);
+  checkTrue('inward drag never inverts', collapsed.scale > 0);
+
+  // Containment outranks pinning. Once the drag hits the size cap the artwork
+  // has to be re-centred to stay inside, so the pinned corner necessarily
+  // moves — that precedence is deliberate, and asserted rather than assumed.
+  const huge = resizeFromCorner(AREA, aspect, start, 'se', 9, 9);
+  const r = placementRect(AREA, aspect, huge);
+  checkTrue('outward drag stays inside horizontally',
+    r.x >= AREA.x - 1e-6 && r.x + r.width <= AREA.x + AREA.width + 1e-6);
+  checkTrue('outward drag stays inside vertically',
+    r.y >= AREA.y - 1e-6 && r.y + r.height <= AREA.y + AREA.height + 1e-6);
+  check('a capped drag reaches maximum scale', huge.scale, maxScale(AREA, aspect));
+  const hugeBounds = placementBounds(AREA, aspect, huge);
+  checkTrue('containment wins over pinning when capped',
+    Math.abs(hugeBounds.left - before.left) > 1e-6);
+
+  // A purely vertical drag must still resize — driving off width alone made
+  // the handle feel stuck when pulled straight down.
+  const vertical = resizeFromCorner(AREA, aspect, start, 'se', before.right, before.top + 0.3);
+  checkTrue('vertical-only drag grows the artwork', vertical.scale > start.scale,
+    `(${vertical.scale.toFixed(3)} vs ${start.scale})`);
+
+  // Every corner is supported and none of them throws or NaNs.
+  for (const c of ['nw', 'ne', 'sw', 'se'] as Corner[]) {
+    const out = resizeFromCorner(AREA, aspect, start, c, 0.7, 0.7);
+    checkTrue(`${c} produces finite values`,
+      Number.isFinite(out.x) && Number.isFinite(out.y) && Number.isFinite(out.scale));
+  }
 }
 
 console.log(failures === 0 ? '\nPASS — all placement checks' : `\nFAILED — ${failures} check(s)`);

@@ -59,6 +59,30 @@ Add the deployed origin to **Supabase → Authentication → URL Configuration**
 to the Google OAuth client's authorised origins. Sign-in will fail on the
 deployed site until both are done, while still working on localhost.
 
+## Garment artwork
+
+The built-in shapes in `GarmentOutline.tsx` are a stand-in. To use real flat
+tech-pack sketches instead, upload them to the public `garments` bucket and
+point the colour rows at them — **no code change is needed**:
+
+```sql
+update public.product_colours pc
+set front_image_path = p.slug || '/' || lower(replace(pc.name,' ','-')) || '-front.png',
+    back_image_path  = p.slug || '/' || lower(replace(pc.name,' ','-')) || '-back.png'
+from public.products p
+where p.id = pc.product_id and p.slug = 'regular-tshirt';
+```
+
+`GarmentPreview` renders the image whenever a path is set and falls back to
+the drawn shape when it is null.
+
+**Two requirements on the files.** They must be exported at the aspect ratio
+recorded in `print_areas.image_width/image_height` (currently 1000×1200), or
+the print rectangle will drift against the garment. And the print-area
+coordinates must be re-measured against the new artwork — they are the one
+thing no fallback covers, because artwork positioned against a wrong rectangle
+prints in the wrong place.
+
 ## Demo data
 
 `scripts/seed-demo-orders.sql` creates four orders spread across the lifecycle
